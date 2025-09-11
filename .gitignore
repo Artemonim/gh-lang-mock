@@ -1,0 +1,13 @@
+# * Python
+.venv/
+.pytest_cache/
+.coverage
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw

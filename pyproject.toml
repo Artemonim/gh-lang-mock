@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=69.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ghlangmock"
+version = "0.1.0"
+description = "Generate dummy repo files mirroring GitHub Linguist language ratios from a source repo"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "Your Name", email = "you@example.com" }
+]
+dependencies = [
+  "pathspec>=0.12.1",
+  "tqdm>=4.66.0"
+]
+
+[project.scripts]
+ghlangmock = "ghlangmock.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["ghlangmock*"]
+
+[tool.setuptools.package-data]
+ghlangmock = ["assets/*.txt"]
+
+
