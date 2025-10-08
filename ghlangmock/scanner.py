@@ -35,8 +35,12 @@ class LanguageStats:
 
 def _iter_files(source_dir: Path) -> Iterable[Path]:
     for path in source_dir.rglob("*"):
-        if path.is_file():
-            yield path
+        try:
+            if path.is_file():
+                yield path
+        except OSError:
+            # * Skip entries that cannot be stat'ed (e.g., locked/system-managed paths)
+            continue
 
 
 def scan_repository(source_dir: Path) -> LanguageStats:
