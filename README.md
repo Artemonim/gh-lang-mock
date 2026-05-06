@@ -51,6 +51,7 @@ Coverage is configured to fail below 75% by default.
 
 - Sensitive information is never read or embedded; only file sizes and extensions are considered.
 - Only ASCII payloads are written to generated files.
+- For ambiguous extensions (for example `.rs`), generated payloads include short Linguist-friendly language hints while still preserving exact per-file byte sizes.
 - Registered git submodules are excluded from scanning. The tool reads submodule paths from `.gitmodules` and (when Git metadata is available) from git index `gitlink` entries (`git ls-files --stage`, mode `160000`).
 - If Git metadata is unavailable, `.gitmodules` still drives exclusion; if both sources are unavailable, all directories are treated as regular folders.
 
