@@ -7,10 +7,12 @@ ignored for ratio calculations to mirror Linguist-like behavior.
 
 from __future__ import annotations
 
+import configparser
+import subprocess
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, Mapping, Tuple
+from typing import Dict, Iterable, Mapping, Optional, Set, Tuple
 
 from tqdm import tqdm
 
@@ -43,6 +45,83 @@ def _iter_files(source_dir: Path) -> Iterable[Path]:
             continue
 
 
+def _to_rel_posix(source_dir: Path, path: Path) -> Optional[str]:
+    try:
+        rel = path.resolve().relative_to(source_dir.resolve())
+    except (OSError, ValueError):
+        return None
+    return str(rel).replace("\\", "/")
+
+
+def _normalize_submodule_path(raw_path: str) -> str:
+    normalized = raw_path.strip().replace("\\", "/").strip("/")
+    parts = [part for part in normalized.split("/") if part and part != "."]
+    return "/".join(parts)
+
+
+def _read_submodule_paths_from_gitmodules(source_dir: Path) -> Set[str]:
+    gitmodules_path = source_dir / ".gitmodules"
+    if not gitmodules_path.is_file():
+        return set()
+
+    parser = configparser.ConfigParser()
+    try:
+        parser.read(gitmodules_path, encoding="utf-8")
+    except (configparser.Error, OSError):
+        return set()
+
+    submodule_paths: Set[str] = set()
+    for section_name in parser.sections():
+        if not section_name.startswith("submodule "):
+            continue
+        if not parser.has_option(section_name, "path"):
+            continue
+        raw_path = parser.get(section_name, "path", fallback="")
+        normalized_path = _normalize_submodule_path(raw_path)
+        if normalized_path:
+            submodule_paths.add(normalized_path)
+    return submodule_paths
+
+
+def _parse_submodule_paths_from_git_index(stdout: str) -> Set[str]:
+    submodule_paths: Set[str] = set()
+    for line in stdout.splitlines():
+        if not line:
+            continue
+        metadata, separator, git_path = line.partition("\t")
+        if not separator:
+            continue
+        mode = metadata.split(" ", maxsplit=1)[0]
+        if mode != "160000":
+            continue
+        normalized_path = _normalize_submodule_path(git_path)
+        if normalized_path:
+            submodule_paths.add(normalized_path)
+    return submodule_paths
+
+
+def _read_submodule_paths_from_git_index(source_dir: Path) -> Set[str]:
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(source_dir), "ls-files", "--stage"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return set()
+    return _parse_submodule_paths_from_git_index(proc.stdout)
+
+
+def _discover_submodule_paths(source_dir: Path) -> Set[str]:
+    # * Explicit behavior when Git metadata is missing:
+    # * - use `.gitmodules` paths if the file exists;
+    # * - otherwise treat all directories as regular.
+    submodule_paths = _read_submodule_paths_from_gitmodules(source_dir)
+    submodule_paths.update(_read_submodule_paths_from_git_index(source_dir))
+    return submodule_paths
+
+
 def scan_repository(source_dir: Path) -> LanguageStats:
     """Scan ``source_dir`` and compute LanguageStats.
 
@@ -54,6 +133,8 @@ def scan_repository(source_dir: Path) -> LanguageStats:
     """
     source_dir = source_dir.resolve()
     spec = build_ignore_spec(source_dir)
+    submodule_paths = tuple(sorted(_discover_submodule_paths(source_dir)))
+    submodule_prefixes = tuple(f"{path}/" for path in submodule_paths)
     counts: Dict[str, int] = defaultdict(int)
     total = 0
 
@@ -61,6 +142,11 @@ def scan_repository(source_dir: Path) -> LanguageStats:
     for file_path in tqdm(
         all_files, desc=f"Scanning {source_dir.name}", unit="file", ncols=100
     ):
+        rel_path = _to_rel_posix(source_dir, file_path)
+        if rel_path is None:
+            continue
+        if rel_path in submodule_paths or rel_path.startswith(submodule_prefixes):
+            continue
         if is_ignored(source_dir, spec, file_path):
             continue
         language = detect_language(file_path)
