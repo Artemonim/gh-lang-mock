@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ghlangmock.generator import generate_dummy_files
+from ghlangmock.generator import generate_dummy_files, split_dummy_files_by_max_lines
 from ghlangmock.seed import read_seed_text, generate_secure_ascii
 
 
@@ -74,4 +74,36 @@ def test_generate_dummy_files_truncates_hint_for_tiny_files(tmp_path: Path):
     assert len(payload) == 4
     assert payload == b"fn m"
 
+
+def test_split_dummy_files_by_max_lines_splits_and_preserves_size(tmp_path: Path):
+    original = tmp_path / "dummy.py"
+    # * 12 lines ensure multiple chunks when max_lines_per_file is 5
+    original.write_text("line\n" * 12, encoding="ascii")
+    original_size = original.stat().st_size
+
+    result_files = split_dummy_files_by_max_lines([original], max_lines_per_file=5)
+
+    # * Expect three files: 5 + 5 + 2 lines
+    assert len(result_files) == 3
+    # * Original file is replaced with a numbered sequence dummy_1.py, dummy_2.py, dummy_3.py
+    names = sorted(p.name for p in result_files)
+    assert names == ["dummy_1.py", "dummy_2.py", "dummy_3.py"]
+    # * Total size is preserved across all parts
+    total_size = sum(p.stat().st_size for p in result_files)
+    assert total_size == original_size
+    # * Each file respects the max line bound
+    for p in result_files:
+        with p.open(encoding="ascii") as fh:
+            assert sum(1 for _ in fh) <= 5
+
+
+def test_split_dummy_files_with_non_positive_limit_is_noop(tmp_path: Path):
+    original = tmp_path / "dummy.py"
+    original.write_text("line\n" * 3, encoding="ascii")
+
+    result_files_zero = split_dummy_files_by_max_lines([original], max_lines_per_file=0)
+    result_files_negative = split_dummy_files_by_max_lines([original], max_lines_per_file=-1)
+
+    assert result_files_zero == [original]
+    assert result_files_negative == [original]
 

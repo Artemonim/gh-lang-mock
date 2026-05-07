@@ -21,7 +21,7 @@ pip install pytest pytest-cov
 ### Usage
 
 ```bash
-ghlangmock <SOURCE_DIR> <DEST_PARENT_DIR> [--seed PATH] [--random|-Random] [--total-bytes N] [--max-files-per-language K] [--min-file-bytes M] [--no-overwrite]
+ghlangmock <SOURCE_DIR> <DEST_PARENT_DIR> [--seed PATH] [--random|-Random] [--total-bytes N] [--min-file-bytes M] [--max-lines-per-file N] [--no-overwrite]
 ```
 
 - `SOURCE_DIR`: Path to the repository to scan (respects .gitignore files).
@@ -29,8 +29,8 @@ ghlangmock <SOURCE_DIR> <DEST_PARENT_DIR> [--seed PATH] [--random|-Random] [--to
 - `--seed PATH`: ASCII text file whose contents are repeated into dummy files.
 - `--random`, `-Random`: Use cryptographically secure random ASCII (overrides seed).
 - `--total-bytes N`: Target total bytes in the generated directory (default: 100000).
-- `--max-files-per-language K`: Split each language into up to K files (default: 1).
 - `--min-file-bytes M`: Minimum file size in bytes when splitting (default: 1).
+- `--max-lines-per-file N`: Maximum number of lines per generated file; when 0, line-based splitting is disabled (default: 500).
 - `--no-overwrite`: Prevent clearing the destination directory. By default, the destination is always cleared before generation.
 
 ### Example
