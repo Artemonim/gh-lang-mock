@@ -17,6 +17,16 @@ from .languages import primary_extension
 from .seed import generate_secure_ascii
 
 
+# * Linguist-oriented prefixes that make ambiguous extensions easier to disambiguate.
+# * Each snippet is ASCII and intentionally short so it preserves payload flexibility.
+LANGUAGE_HINT_PREFIX: Dict[str, str] = {
+    "Rust": "fn main() { println!(\"hi\"); }\n",
+    "R": "x <- 1\nprint(x)\n",
+    "Objective-C": "#import <Foundation/Foundation.h>\n",
+    "Perl": "use strict;\nuse warnings;\n",
+}
+
+
 def _ensure_clean_dir(dest_dir: Path, overwrite: bool) -> None:
     """Create a clean destination directory, ensuring parent exists."""
     # First, ensure the parent directory exists.
@@ -46,6 +56,32 @@ def _repeat_seed_to_length(seed: str, length: int) -> bytes:
         return generate_secure_ascii(length)
     repeated = (seed * (math.ceil(length / len(seed)))).encode("ascii")
     return repeated[:length]
+
+
+def _build_payload_for_language(
+    language: str, size: int, seed_text: str, random_fallback: bool
+) -> bytes:
+    """Build deterministic payload for a language while keeping exact size.
+
+    Args:
+        language: Target language name.
+        size: Required file size in bytes.
+        seed_text: User-provided seed text.
+        random_fallback: Whether to use secure random ASCII for the filler.
+
+    Returns:
+        Byte payload with exact ``size``.
+    """
+    if size <= 0:
+        return b""
+    hint = LANGUAGE_HINT_PREFIX.get(language, "")
+    hint_bytes = hint.encode("ascii")
+    if len(hint_bytes) >= size:
+        return hint_bytes[:size]
+
+    filler_seed = "" if random_fallback else seed_text
+    filler = _repeat_seed_to_length(filler_seed, size - len(hint_bytes))
+    return hint_bytes + filler
 
 
 def _split_into_files(total_bytes: int, max_files: int, min_file_bytes: int) -> List[int]:
@@ -130,8 +166,11 @@ def generate_dummy_files(
             for idx, size in enumerate(sizes, start=1):
                 file_name = f"{language.replace(' ', '_')}_{idx}{ext}"
                 file_path = dest_dir / file_name
-                payload = _repeat_seed_to_length(
-                    seed_text if not random_fallback else "", size
+                payload = _build_payload_for_language(
+                    language=language,
+                    size=size,
+                    seed_text=seed_text,
+                    random_fallback=random_fallback,
                 )
                 file_path.write_bytes(payload)
                 created.append(file_path)

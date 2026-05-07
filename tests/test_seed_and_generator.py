@@ -37,3 +37,41 @@ def test_generate_dummy_files_with_seed(tmp_path: Path):
     assert any(f.suffix == ".ts" for f in files)
 
 
+def test_generate_dummy_files_includes_rust_hint_without_size_shift(tmp_path: Path):
+    dest = tmp_path / "out"
+    mapping = {"Rust": 40}
+    files = generate_dummy_files(
+        dest,
+        mapping,
+        seed_text="ABC",
+        random_fallback=False,
+        max_files_per_language=1,
+        min_file_bytes=1,
+        overwrite=True,
+    )
+    assert len(files) == 1
+    rust_file = files[0]
+    assert rust_file.suffix == ".rs"
+    payload = rust_file.read_bytes()
+    assert len(payload) == 40
+    assert payload.startswith(b"fn main() {")
+
+
+def test_generate_dummy_files_truncates_hint_for_tiny_files(tmp_path: Path):
+    dest = tmp_path / "out"
+    mapping = {"Rust": 4}
+    files = generate_dummy_files(
+        dest,
+        mapping,
+        seed_text="ABC",
+        random_fallback=False,
+        max_files_per_language=1,
+        min_file_bytes=1,
+        overwrite=True,
+    )
+    assert len(files) == 1
+    payload = files[0].read_bytes()
+    assert len(payload) == 4
+    assert payload == b"fn m"
+
+
