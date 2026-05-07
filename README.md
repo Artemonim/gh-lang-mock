@@ -21,11 +21,11 @@ pip install pytest pytest-cov
 ### Usage
 
 ```bash
-ghlangmock <SOURCE_DIR> <DEST_DIR> [--seed PATH] [--random|-Random] [--total-bytes N] [--max-files-per-language K] [--min-file-bytes M] [--no-overwrite]
+ghlangmock <SOURCE_DIR> <DEST_PARENT_DIR> [--seed PATH] [--random|-Random] [--total-bytes N] [--max-files-per-language K] [--min-file-bytes M] [--no-overwrite]
 ```
 
 - `SOURCE_DIR`: Path to the repository to scan (respects .gitignore files).
-- `DEST_DIR`: Path to create dummy files reflecting the language ratios.
+- `DEST_PARENT_DIR`: Existing directory under which the tool creates the `dummy-code/` subdirectory. Pass the parent folder (for example `../my-portfolio`), not the final `dummy-code` path, otherwise you will end up with `dummy-code/dummy-code`.
 - `--seed PATH`: ASCII text file whose contents are repeated into dummy files.
 - `--random`, `-Random`: Use cryptographically secure random ASCII (overrides seed).
 - `--total-bytes N`: Target total bytes in the generated directory (default: 10000).
@@ -38,6 +38,8 @@ ghlangmock <SOURCE_DIR> <DEST_DIR> [--seed PATH] [--random|-Random] [--total-byt
 ```bash
 ghlangmock . ../app_showreel
 ```
+
+This command scans the current directory and writes generated files into `../app_showreel/dummy-code/`.
 
 ### Testing
 
