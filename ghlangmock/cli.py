@@ -13,7 +13,7 @@ import importlib.resources as ir
 
 from .scanner import scan_repository, compute_target_sizes
 from .seed import read_seed_text
-from .generator import generate_dummy_files
+from .generator import generate_dummy_files, split_dummy_files_by_max_lines
 
 
 def _positive_int(value: str) -> int:
@@ -52,16 +52,19 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--max-files-per-language",
-        type=_positive_int,
-        default=1,
-        help="Split language payload into up to K files (default 1)",
-    )
-    parser.add_argument(
         "--min-file-bytes",
         type=_positive_int,
         default=1,
         help="Minimum file size when splitting (default 1)",
+    )
+    parser.add_argument(
+        "--max-lines-per-file",
+        type=_positive_int,
+        default=500,
+        help=(
+            "Split generated dummy files so that each file contains at most this many lines. "
+            "Use 0 to disable line-based splitting (default: 500)."
+        ),
     )
     parser.add_argument(
         "--no-overwrite",
@@ -124,15 +127,17 @@ def main(argv: list[str] | None = None) -> int:
         print("Seed not found or empty, falling back to random ASCII for file content.")
 
     print(f"Generating dummy files in '{destination.resolve()}'...")
-    generate_dummy_files(
+    created_files = generate_dummy_files(
         destination,
         allocations,
         seed_text=seed_text,
         random_fallback=random_mode,
-        max_files_per_language=args.max_files_per_language,
+        max_files_per_language=1,
         min_file_bytes=args.min_file_bytes,
         overwrite=args.overwrite,
     )
+    if args.max_lines_per_file is not None:
+        split_dummy_files_by_max_lines(created_files, args.max_lines_per_file)
     print("Done.")
     return 0
 

@@ -178,3 +178,90 @@ def generate_dummy_files(
     return created
 
 
+def _infer_language_slug(path: Path) -> str:
+    """Infer a stable language slug from a dummy file path.
+
+    The slug normalizes names like ``Python_1.py`` or ``Python_1_part2.py`` to ``Python``.
+    """
+    stem = path.stem
+    # * Drop any legacy ``_partN`` suffix that may exist from previous versions
+    if "_part" in stem:
+        stem = stem.split("_part", 1)[0]
+    parts = stem.split("_")
+    if parts and parts[-1].isdigit():
+        base = "_".join(parts[:-1])
+        return base or stem
+    return stem
+
+
+def split_dummy_files_by_max_lines(
+    files: Iterable[Path],
+    max_lines_per_file: int,
+) -> List[Path]:
+    """Split existing dummy files so that each has at most ``max_lines_per_file`` lines.
+
+    Files are grouped by language slug and extension, concatenated per group, and then
+    rewritten as a numbered sequence ``<slug>_1.ext``, ``<slug>_2.ext``, ... while
+    preserving the total byte size per group.
+
+    Args:
+        files: Iterable of dummy file paths to consider for splitting.
+        max_lines_per_file: Maximum number of lines allowed in a single file.
+            When ``max_lines_per_file`` is less than or equal to zero, no splitting occurs.
+
+    Returns:
+        List of resulting file paths after splitting.
+    """
+    if max_lines_per_file <= 0:
+        # * Non-positive value disables line-based splitting
+        return list(files)
+
+    files_list = list(files)
+    if not files_list:
+        return []
+
+    # * Group files by (directory, language slug, extension)
+    groups: Dict[Tuple[Path, str, str], List[Path]] = {}
+    for path in files_list:
+        key = (path.parent, _infer_language_slug(path), path.suffix)
+        groups.setdefault(key, []).append(path)
+
+    result: List[Path] = []
+
+    for (parent, slug, suffix), group_paths in groups.items():
+        # * Read all content for the group; if any read fails, keep the group unchanged
+        all_lines: List[str] = []
+        try:
+            for src in sorted(group_paths):
+                text = src.read_text(encoding="ascii")
+                all_lines.extend(text.splitlines(keepends=True))
+        except OSError:
+            result.extend(group_paths)
+            continue
+
+        if not all_lines:
+            result.extend(group_paths)
+            continue
+
+        # * Remove original files before rewriting normalized sequence
+        for src in group_paths:
+            try:
+                src.unlink()
+            except OSError:
+                # * Ignore deletion errors; subsequent writes may still succeed
+                continue
+
+        index = 1
+        start = 0
+        total_lines = len(all_lines)
+        while start < total_lines:
+            chunk_lines = all_lines[start : start + max_lines_per_file]
+            start += max_lines_per_file
+            target = parent / f"{slug}_{index}{suffix}"
+            # * newline='\n' preserves exact byte sizes (default on Windows expands \n to CRLF).
+            target.write_text("".join(chunk_lines), encoding="ascii", newline="\n")
+            result.append(target)
+            index += 1
+
+    return result
+
