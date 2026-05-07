@@ -45,7 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--total-bytes",
         type=_positive_int,
-        default=10000,
+        default=100000,
         help=(
             "Total bytes to generate. Default equals total recognized bytes in source. "
             "When 0, generates an empty destination."

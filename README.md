@@ -28,7 +28,7 @@ ghlangmock <SOURCE_DIR> <DEST_PARENT_DIR> [--seed PATH] [--random|-Random] [--to
 - `DEST_PARENT_DIR`: Existing directory under which the tool creates the `dummy-code/` subdirectory. Pass the parent folder (for example `../my-portfolio`), not the final `dummy-code` path, otherwise you will end up with `dummy-code/dummy-code`.
 - `--seed PATH`: ASCII text file whose contents are repeated into dummy files.
 - `--random`, `-Random`: Use cryptographically secure random ASCII (overrides seed).
-- `--total-bytes N`: Target total bytes in the generated directory (default: 10000).
+- `--total-bytes N`: Target total bytes in the generated directory (default: 100000).
 - `--max-files-per-language K`: Split each language into up to K files (default: 1).
 - `--min-file-bytes M`: Minimum file size in bytes when splitting (default: 1).
 - `--no-overwrite`: Prevent clearing the destination directory. By default, the destination is always cleared before generation.
